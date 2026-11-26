@@ -221,11 +221,42 @@
       </div>
     </div>
 
-    <label class="fl" for="wPrompt">Đề bài</label>
-    <textarea id="wPrompt" rows="3" placeholder="Dán đề Writing vào đây…"></textarea>
-    <label class="fl" for="wEssay">Bài viết của bạn</label>
-    <textarea id="wEssay" rows="10" placeholder="Dán bài viết tiếng Anh của bạn vào đây…"></textarea>
+    <label class="fl" for="wPrompt">Đề bài (nhập text hoặc dán ảnh đề / chart / map / process)</label>
+    <textarea id="wPrompt" rows="3" placeholder="Dán đề Writing vào đây, hoặc bấm Ctrl+V để dán ảnh đề bài / biểu đồ / map / process…"></textarea>
+    <div class="img-dropzone" id="promptDropZone" tabindex="0" aria-label="Khu vực dán hoặc tải ảnh đề bài">
+      <div class="img-dz-head">
+        <span class="img-dz-title">📎 Ảnh đề bài (Chart / Graph / Map / Process / Đề chụp)</span>
+        <div class="img-dz-actions">
+          <label class="btn ghost xs" style="display:inline-flex; align-items:center; cursor:pointer">
+            + Chọn ảnh
+            <input type="file" id="promptImgInput" accept="image/*" multiple class="hidden" />
+          </label>
+          <button type="button" class="btn ghost xs hidden" id="ocrPromptBtn">🔍 Nhận diện đề &amp; biểu đồ vào ô text</button>
+          <button type="button" class="btn danger xs hidden" id="clearPromptImgsBtn">Xóa ảnh</button>
+        </div>
+      </div>
+      <div class="img-dz-hint">Hỗ trợ <b>Ctrl+V</b> dán ảnh trực tiếp, kéo thả file ảnh, hoặc chọn nhiều ảnh cùng lúc — AI sẽ tự đọc chữ, số liệu biểu đồ, map và process.</div>
+      <div class="img-preview-grid hidden" id="promptImgPreview"></div>
+    </div>
+
+    <label class="fl" for="wEssay">Bài viết của bạn (nhập text hoặc dán ảnh bài viết tay / ảnh chụp)</label>
+    <textarea id="wEssay" rows="10" placeholder="Dán bài viết tiếng Anh vào đây, hoặc bấm Ctrl+V để dán ảnh bài viết tay / ảnh chụp màn hình…"></textarea>
     <p class="hint" id="wordCount">0 từ</p>
+    <div class="img-dropzone" id="essayDropZone" tabindex="0" aria-label="Khu vực dán hoặc tải ảnh bài làm">
+      <div class="img-dz-head">
+        <span class="img-dz-title">📎 Ảnh bài làm (chữ viết tay / ảnh chụp bài viết)</span>
+        <div class="img-dz-actions">
+          <label class="btn ghost xs" style="display:inline-flex; align-items:center; cursor:pointer">
+            + Chọn ảnh
+            <input type="file" id="essayImgInput" accept="image/*" multiple class="hidden" />
+          </label>
+          <button type="button" class="btn ghost xs hidden" id="ocrEssayBtn">🔍 Chép chữ từ ảnh vào ô bài viết</button>
+          <button type="button" class="btn danger xs hidden" id="clearEssayImgsBtn">Xóa ảnh</button>
+        </div>
+      </div>
+      <div class="img-dz-hint">Có thể chấm trực tiếp từ ảnh (không cần gõ lại) hoặc bấm <b>Chép chữ từ ảnh</b> để kiểm tra/sửa trước khi chấm.</div>
+      <div class="img-preview-grid hidden" id="essayImgPreview"></div>
+    </div>
   </div>
 
   <!-- Fixed IELTS Rubric Card -->
@@ -346,6 +377,18 @@
     </div>
 
     <div class="crit-grid" id="critGrid"></div>
+
+    <details class="fold hidden" id="recognizedWrap">
+      <summary>👁️ Nội dung AI đã nhận diện từ ảnh (đề bài / biểu đồ / bài viết tay) — bấm để xem</summary>
+      <div id="recognizedPromptWrap" class="hidden" style="margin-top:10px">
+        <div class="hint" style="margin:0 0 4px"><b>Đề bài / Biểu đồ / Map / Process AI đọc được:</b></div>
+        <div class="rewrite-box" id="recognizedPromptBox" style="margin-top:0"></div>
+      </div>
+      <div id="recognizedEssayWrap" class="hidden" style="margin-top:10px">
+        <div class="hint" style="margin:0 0 4px"><b>Bài viết AI chép lại từ ảnh:</b></div>
+        <div class="rewrite-box" id="recognizedEssayBox" style="margin-top:0"></div>
+      </div>
+    </details>
 
     <div id="tfResultWrap" class="hidden" style="margin-top:22px">
       <h3>Đối chiếu theo Feedback của giáo viên</h3>
@@ -572,6 +615,17 @@ create policy "hani_profiles_update_by_sync_header"
       </label>
       <button type="button" class="btn danger small" id="resetAllDataBtn" style="margin-left:auto">Đặt lại dữ liệu gốc</button>
     </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: IMAGE LIGHTBOX ===================== -->
+<div class="modal-backdrop hidden" id="imgLightboxModal" role="dialog" aria-modal="true" aria-labelledby="imgLightboxCaption">
+  <div class="modal" style="width:min(820px, 100%)">
+    <div class="modal-head">
+      <h2 id="imgLightboxCaption">Xem ảnh</h2>
+      <button type="button" class="btn ghost xs" id="closeImgLightbox">Đóng</button>
+    </div>
+    <img id="imgLightboxImg" class="lightbox-img" alt="Xem trước ảnh" />
   </div>
 </div>
 

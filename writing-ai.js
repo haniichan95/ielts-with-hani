@@ -4,7 +4,10 @@
 
 window.HANI_WRITING = (function(){
   var GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
+  var MAX_IMAGES_PER_FIELD = 6;
   var deps = null;
+  var initialized = false;
+  var imageStore = { prompt: [], essay: [] };
 
   function esc(s){
     return deps.esc(s);
@@ -199,12 +202,265 @@ window.HANI_WRITING = (function(){
     });
   }
 
+  /* -------- Image Handling (Paste / Drop / Upload + Compression) -------- */
+  function compressImageFile(file){
+    return new Promise(function(resolve, reject){
+      if (!file || !file.type || file.type.indexOf("image/") !== 0){
+        reject(new Error("Chỉ hỗ trợ file ảnh."));
+        return;
+      }
+      var reader = new FileReader();
+      reader.onerror = function(){ reject(new Error("Không đọc được file ảnh.")); };
+      reader.onload = function(){
+        var img = new Image();
+        img.onerror = function(){ reject(new Error("File ảnh bị lỗi hoặc không hỗ trợ.")); };
+        img.onload = function(){
+          var maxSide = 1600;
+          var w = img.naturalWidth || img.width;
+          var h = img.naturalHeight || img.height;
+          if (w > maxSide || h > maxSide){
+            if (w >= h){
+              h = Math.round(h * maxSide / w);
+              w = maxSide;
+            } else {
+              w = Math.round(w * maxSide / h);
+              h = maxSide;
+            }
+          }
+          var canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          var ctx = canvas.getContext("2d");
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+
+          var mimeType = "image/jpeg";
+          var dataUrl = canvas.toDataURL(mimeType, 0.88);
+          var base64 = dataUrl.split(",")[1] || "";
+          resolve({
+            id: "img-" + Date.now() + "-" + Math.floor(Math.random() * 10000),
+            name: file.name || ("pasted-" + new Date().toLocaleTimeString("vi-VN") + ".jpg"),
+            mimeType: mimeType,
+            base64: base64,
+            dataUrl: dataUrl,
+            width: w,
+            height: h,
+            sizeKB: Math.max(1, Math.round((base64.length * 3) / 4 / 1024))
+          });
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function addImagesToField(kind, files){
+    var arr = Array.prototype.slice.call(files || []).filter(function(f){
+      return f && f.type && f.type.indexOf("image/") === 0;
+    });
+    if (!arr.length) return;
+    var room = MAX_IMAGES_PER_FIELD - imageStore[kind].length;
+    if (room <= 0){
+      setStatus("gradeStatus", "Tối đa " + MAX_IMAGES_PER_FIELD + " ảnh cho mỗi mục.", "bad");
+      return;
+    }
+    var toProcess = arr.slice(0, room);
+    Promise.all(toProcess.map(compressImageFile)).then(function(items){
+      imageStore[kind] = imageStore[kind].concat(items);
+      renderImagePreview(kind);
+      updateWordCount();
+      setStatus("gradeStatus", "Đã thêm " + items.length + " ảnh (" + (kind === "prompt" ? "Đề bài" : "Bài làm") + ").", "ok");
+    }).catch(function(err){
+      setStatus("gradeStatus", err.message, "bad");
+    });
+  }
+
+  function openLightbox(item){
+    document.getElementById("imgLightboxImg").src = item.dataUrl;
+    document.getElementById("imgLightboxCaption").textContent = item.name + " (" + item.width + "×" + item.height + " · " + item.sizeKB + " KB)";
+    document.getElementById("imgLightboxModal").classList.remove("hidden");
+  }
+
+  function renderImagePreview(kind){
+    var isPrompt = kind === "prompt";
+    var grid = document.getElementById(isPrompt ? "promptImgPreview" : "essayImgPreview");
+    var ocrBtn = document.getElementById(isPrompt ? "ocrPromptBtn" : "ocrEssayBtn");
+    var clearBtn = document.getElementById(isPrompt ? "clearPromptImgsBtn" : "clearEssayImgsBtn");
+    var list = imageStore[kind];
+
+    ocrBtn.classList.toggle("hidden", !list.length);
+    clearBtn.classList.toggle("hidden", !list.length);
+    grid.classList.toggle("hidden", !list.length);
+    grid.innerHTML = "";
+
+    list.forEach(function(item, idx){
+      var card = document.createElement("div");
+      card.className = "img-thumb";
+
+      var img = document.createElement("img");
+      img.src = item.dataUrl;
+      img.alt = item.name;
+      img.title = "Bấm để phóng to ảnh";
+      img.addEventListener("click", function(){ openLightbox(item); });
+
+      var rm = document.createElement("button");
+      rm.type = "button";
+      rm.className = "img-rm";
+      rm.textContent = "✕";
+      rm.title = "Xóa ảnh này";
+      rm.addEventListener("click", function(){
+        imageStore[kind].splice(idx, 1);
+        renderImagePreview(kind);
+        updateWordCount();
+      });
+
+      var meta = document.createElement("div");
+      meta.className = "img-meta";
+      meta.textContent = item.width + "×" + item.height + " · " + item.sizeKB + "KB";
+
+      card.appendChild(img);
+      card.appendChild(rm);
+      card.appendChild(meta);
+      grid.appendChild(card);
+    });
+  }
+
+  function extractClipboardImages(ev){
+    var cd = ev.clipboardData || window.clipboardData;
+    if (!cd) return [];
+    var files = [];
+    if (cd.items){
+      for (var i = 0; i < cd.items.length; i++){
+        var it = cd.items[i];
+        if (it.kind === "file" && it.type && it.type.indexOf("image/") === 0){
+          var f = it.getAsFile();
+          if (f) files.push(f);
+        }
+      }
+    } else if (cd.files){
+      for (var j = 0; j < cd.files.length; j++){
+        if (cd.files[j].type && cd.files[j].type.indexOf("image/") === 0){
+          files.push(cd.files[j]);
+        }
+      }
+    }
+    return files;
+  }
+
+  function setupImageDropzone(kind, textareaId, dropzoneId, inputId, clearBtnId, ocrBtnId){
+    var ta = document.getElementById(textareaId);
+    var dz = document.getElementById(dropzoneId);
+    var inp = document.getElementById(inputId);
+
+    function handlePaste(ev){
+      var imgs = extractClipboardImages(ev);
+      if (imgs.length){
+        ev.preventDefault();
+        addImagesToField(kind, imgs);
+      }
+    }
+
+    ta.addEventListener("paste", handlePaste);
+    dz.addEventListener("paste", handlePaste);
+
+    inp.addEventListener("change", function(){
+      if (this.files && this.files.length) addImagesToField(kind, this.files);
+      this.value = "";
+    });
+
+    dz.addEventListener("dragover", function(ev){
+      ev.preventDefault();
+      dz.classList.add("dragover");
+    });
+    dz.addEventListener("dragleave", function(){
+      dz.classList.remove("dragover");
+    });
+    dz.addEventListener("drop", function(ev){
+      ev.preventDefault();
+      dz.classList.remove("dragover");
+      if (ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files.length){
+        addImagesToField(kind, ev.dataTransfer.files);
+      }
+    });
+
+    document.getElementById(clearBtnId).addEventListener("click", function(){
+      imageStore[kind] = [];
+      renderImagePreview(kind);
+      updateWordCount();
+    });
+
+    document.getElementById(ocrBtnId).addEventListener("click", function(){
+      runImageOcr(kind, this);
+    });
+  }
+
+  function runImageOcr(kind, btn){
+    var list = imageStore[kind];
+    if (!list.length) return;
+    var key = gemKey();
+    if (!key){
+      setStatus("gradeStatus", "Hãy dán Gemini API key ở trên trước để AI nhận diện ảnh.", "bad");
+      return;
+    }
+    window.HANI_STORAGE.saveGeminiKey(key);
+    var model = document.getElementById("gemModel").value || "gemini-2.5-flash";
+    btn.disabled = true;
+    setStatus("gradeStatus", "AI đang nhận diện nội dung từ ảnh " + (kind === "prompt" ? "đề bài / biểu đồ / map / process" : "bài làm") + "…", "");
+
+    var instruction = kind === "prompt"
+      ? "Hãy đọc và trích xuất toàn bộ nội dung từ ảnh đề IELTS Writing này:\n" +
+        "1. Ghi nguyên văn câu đề bài (tiếng Anh) nếu có trong ảnh.\n" +
+        "2. Nếu có biểu đồ (Line/Bar/Pie/Table), bản đồ (Map) hoặc quy trình (Process/Diagram): " +
+        "xác định loại hình ảnh và mô tả chi tiết các nhãn, trục, đơn vị, mốc thời gian, số liệu chính, các thay đổi trên bản đồ hoặc từng bước của quy trình để dùng cho việc chấm Task Achievement.\n" +
+        "Trả về văn bản rõ ràng, không dùng markdown rườm rà."
+      : "Hãy chép lại NGUYÊN VĂN toàn bộ bài viết tiếng Anh trong ảnh bài làm này.\n" +
+        "QUAN TRỌNG: Giữ nguyên từng từ, chính tả, dấu câu, ngữ pháp và chia đoạn đúng như học viên đã viết (KHÔNG tự động sửa lỗi chính tả hay ngữ pháp). Chỉ trả về nội dung bài viết, không thêm lời bình luận.";
+
+    var parts = [{ text: instruction }];
+    list.forEach(function(img){
+      parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+    });
+
+    fetch(GEMINI_BASE + "/models/" + encodeURIComponent(model) + ":generateContent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+      body: JSON.stringify({
+        contents: [{ parts: parts }],
+        generationConfig: { temperature: 0.1 }
+      })
+    })
+    .then(function(r){
+      if (!r.ok){
+        return r.text().then(function(t){ throw new Error("HTTP " + r.status + " " + t.slice(0, 180)); });
+      }
+      return r.json();
+    })
+    .then(function(data){
+      var p = (((data.candidates || [])[0] || {}).content || {}).parts;
+      var text = (p || []).map(function(x){ return x.text || ""; }).join("").trim();
+      if (!text) throw new Error("AI không đọc được chữ/hình từ ảnh.");
+      var ta = document.getElementById(kind === "prompt" ? "wPrompt" : "wEssay");
+      ta.value = ta.value.trim() ? (ta.value.trim() + "\n\n" + text) : text;
+      updateWordCount();
+      setStatus("gradeStatus", "Đã nhận diện xong và điền vào ô " + (kind === "prompt" ? "Đề bài" : "Bài viết") + "!", "ok");
+    })
+    .catch(function(err){
+      setStatus("gradeStatus", "Nhận diện ảnh thất bại: " + err.message, "bad");
+    })
+    .finally(function(){
+      btn.disabled = false;
+    });
+  }
+
   /* -------- Build Prompt -------- */
   function buildGradePrompt(){
     var task = currentTask();
     var target = document.getElementById("wTarget").value;
     var prompt = document.getElementById("wPrompt").value.trim();
     var essay = document.getElementById("wEssay").value.trim();
+    var hasPromptImgs = imageStore.prompt.length > 0;
+    var hasEssayImgs = imageStore.essay.length > 0;
 
     var fixedGroups = activeFixedCriteria(task);
     var fixedText = fixedGroups.map(function(g){
@@ -222,15 +478,24 @@ window.HANI_WRITING = (function(){
 
     var firstCriterionName = task === "Task 1" ? "Task Achievement" : "Task Response";
 
+    var mediaNote = "";
+    if (hasPromptImgs || hasEssayImgs){
+      mediaNote = "\nHƯỚNG DẪN ĐỌC ẢNH ĐÍNH KÈM:\n" +
+        (hasPromptImgs ? "- Có " + imageStore.prompt.length + " ảnh ĐỀ BÀI đính kèm: Hãy tự nhận diện toàn bộ đề chữ và phân tích chính xác nội dung trực quan (Line/Bar/Pie Chart, Table, Map, Process/Diagram: năm, đơn vị, số liệu nổi bật, thay đổi trên map hoặc các bước quy trình) trước khi chấm điểm Task Achievement/Task Response.\n" : "") +
+        (hasEssayImgs ? "- Có " + imageStore.essay.length + " ảnh BÀI LÀM đính kèm: Hãy đọc kỹ chữ viết tay/ảnh chụp nguyên văn (KHÔNG tự sửa lỗi chính tả hay ngữ pháp khi đọc), kết hợp với phần text (nếu có) để chấm chính xác và ghi lại bản chép nguyên văn vào trường transcribed_essay.\n" : "");
+    }
+
     return "Bạn là giám khảo IELTS Writing giàu kinh nghiệm (chuẩn Academic). Hãy chấm bài " + task +
-      " dưới đây với band mục tiêu của học viên là " + target + ".\n\n" +
+      " dưới đây với band mục tiêu của học viên là " + target + ".\n" + mediaNote + "\n" +
       "=== 1. BỘ CRITERIA CỐ ĐỊNH (" + task + ") ===\n" + fixedText + "\n\n" +
       "=== 2. NHỮNG PHẦN FEEDBACK CỦA GIÁO VIÊN (BẮT BUỘC KIỂM TRA TỪNG MỤC) ===\n" + teacherText + "\n\n" +
-      "=== 3. ĐỀ BÀI ===\n" + (prompt || "(học viên không dán đề)") + "\n\n" +
-      "=== 4. BÀI VIẾT CỦA HỌC VIÊN ===\n" + essay + "\n\n" +
+      "=== 3. ĐỀ BÀI (TEXT) ===\n" + (prompt || (hasPromptImgs ? "(xem trong ảnh đề bài đính kèm bên dưới)" : "(học viên không dán đề)")) + "\n\n" +
+      "=== 4. BÀI VIẾT CỦA HỌC VIÊN (TEXT) ===\n" + (essay || (hasEssayImgs ? "(xem trong ảnh bài làm đính kèm bên dưới)" : "")) + "\n\n" +
       "YÊU CẦU ĐẦU RA:\n" +
       "Trả về DUY NHẤT một JSON hợp lệ (không markdown ```, không giải thích ngoài JSON) theo đúng schema sau:\n" +
       "{\n" +
+      '  "recognized_prompt_summary": "' + (hasPromptImgs ? 'Tóm tắt ngắn gọn đề bài và các số liệu/chi tiết chính đọc được từ ảnh chart/map/process (tiếng Việt + từ khóa đề)' : '') + '",\n' +
+      '  "transcribed_essay": "' + (hasEssayImgs ? 'Chép lại nguyên văn toàn bộ bài viết tiếng Anh đọc được từ ảnh bài làm (giữ nguyên lỗi gốc để đối chiếu)' : '') + '",\n' +
       '  "overall_band": 6.5,\n' +
       '  "overall_comment": "Nhận xét tổng quan bằng tiếng Việt (2-4 câu), nêu rõ điểm mạnh nhất và rào cản lớn nhất để chạm band ' + target + '.",\n' +
       '  "criteria": [\n' +
@@ -267,6 +532,23 @@ window.HANI_WRITING = (function(){
       "overall_band làm tròn theo quy tắc IELTS (0.5 gần nhất).";
   }
 
+  function buildGeminiParts(){
+    var parts = [{ text: buildGradePrompt() }];
+    if (imageStore.prompt.length){
+      parts.push({ text: "--- ẢNH ĐỀ BÀI (PROMPT / CHART / MAP / PROCESS) ---" });
+      imageStore.prompt.forEach(function(img){
+        parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+      });
+    }
+    if (imageStore.essay.length){
+      parts.push({ text: "--- ẢNH BÀI LÀM CỦA HỌC VIÊN (ESSAY) ---" });
+      imageStore.essay.forEach(function(img){
+        parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+      });
+    }
+    return parts;
+  }
+
   /* -------- Render Grading Result -------- */
   function renderGradeResult(data, meta){
     meta = meta || {};
@@ -283,6 +565,22 @@ window.HANI_WRITING = (function(){
       return '<div class="crit"><div class="c-head"><span class="c-name">' + esc(c.name) + '</span><span class="c-band">' +
         (c.band != null ? Number(c.band).toFixed(1) : "–") + '</span></div><p>' + esc(c.comment || "") + "</p></div>";
     }).join("");
+
+    /* Recognized content from attached images */
+    var recPrompt = (data.recognized_prompt_summary || "").trim();
+    var recEssay = (data.transcribed_essay || "").trim();
+    var recWrap = document.getElementById("recognizedWrap");
+    var recPromptWrap = document.getElementById("recognizedPromptWrap");
+    var recEssayWrap = document.getElementById("recognizedEssayWrap");
+    if (recPrompt || recEssay){
+      recWrap.classList.remove("hidden");
+      recPromptWrap.classList.toggle("hidden", !recPrompt);
+      document.getElementById("recognizedPromptBox").textContent = recPrompt;
+      recEssayWrap.classList.toggle("hidden", !recEssay);
+      document.getElementById("recognizedEssayBox").textContent = recEssay;
+    } else {
+      recWrap.classList.add("hidden");
+    }
 
     /* Teacher Feedback Evaluation */
     var tfWrap = document.getElementById("tfResultWrap");
@@ -427,8 +725,11 @@ window.HANI_WRITING = (function(){
     var n = val ? val.split(/\s+/).length : 0;
     var minReq = currentTask() === "Task 1" ? 150 : 250;
     var el = document.getElementById("wordCount");
+    var imgNote = imageStore.essay.length ? (" · +" + imageStore.essay.length + " ảnh bài làm (AI sẽ tự đọc chữ)") : "";
     if (el){
-      el.textContent = n + " từ" + (n > 0 && n < minReq ? " (khuyến nghị tối thiểu " + minReq + " từ)" : n >= minReq ? " ✓ Đạt độ dài tối thiểu" : "");
+      el.textContent = n + " từ" +
+        (n > 0 && n < minReq ? " (khuyến nghị tối thiểu " + minReq + " từ)" : n >= minReq ? " ✓ Đạt độ dài tối thiểu" : "") +
+        imgNote;
     }
     return n;
   }
@@ -469,6 +770,11 @@ window.HANI_WRITING = (function(){
 
   function init(context){
     deps = context;
+    if (initialized){
+      render();
+      return;
+    }
+    initialized = true;
 
     /* Restore Gemini key & model */
     var keyInput = document.getElementById("gemKey");
@@ -617,15 +923,28 @@ window.HANI_WRITING = (function(){
       renderTeacherFeedback();
     });
 
+    /* Image Paste / Drop / Upload for Prompt & Essay */
+    setupImageDropzone("prompt", "wPrompt", "promptDropZone", "promptImgInput", "clearPromptImgsBtn", "ocrPromptBtn");
+    setupImageDropzone("essay", "wEssay", "essayDropZone", "essayImgInput", "clearEssayImgsBtn", "ocrEssayBtn");
+    document.getElementById("closeImgLightbox").addEventListener("click", function(){
+      document.getElementById("imgLightboxModal").classList.add("hidden");
+    });
+    document.getElementById("imgLightboxModal").addEventListener("click", function(ev){
+      if (ev.target.id === "imgLightboxModal") ev.target.classList.add("hidden");
+    });
+
     /* Copy Manual Prompt */
     document.getElementById("copyPromptBtn").addEventListener("click", function(){
-      if (!document.getElementById("wEssay").value.trim()){
-        setStatus("gradeStatus", "Hãy dán bài viết trước nhé.", "bad");
+      if (!document.getElementById("wEssay").value.trim() && !imageStore.essay.length){
+        setStatus("gradeStatus", "Hãy dán bài viết (hoặc ảnh bài làm) trước nhé.", "bad");
         return;
       }
       var text = buildGradePrompt();
+      var extraNote = (imageStore.prompt.length || imageStore.essay.length)
+        ? " (Lưu ý: Bạn đang đính kèm ảnh — nhớ gửi kèm ảnh khi dán vào Gemini/ChatGPT hoặc bấm 'Nhận diện/Chép chữ' trước.)"
+        : "";
       copyText(text, function(){
-        setStatus("gradeStatus", "Đã copy prompt (kèm criteria cố định & feedback giáo viên) — dán vào Gemini/ChatGPT để chấm thủ công.", "ok");
+        setStatus("gradeStatus", "Đã copy prompt (kèm criteria cố định & feedback giáo viên)." + extraNote, "ok");
       });
     });
 
@@ -641,12 +960,13 @@ window.HANI_WRITING = (function(){
       });
     });
 
-    /* Grade Essay with Gemini */
+    /* Grade Essay with Gemini (supports text + prompt/essay images) */
     document.getElementById("gradeBtn").addEventListener("click", function(){
       var key = gemKey();
       var essay = document.getElementById("wEssay").value.trim();
-      if (!essay){
-        setStatus("gradeStatus", "Hãy dán bài viết trước nhé.", "bad");
+      var hasEssayImgs = imageStore.essay.length > 0;
+      if (!essay && !hasEssayImgs){
+        setStatus("gradeStatus", "Hãy dán bài viết hoặc dán ảnh bài làm trước nhé.", "bad");
         return;
       }
       if (!key){
@@ -657,18 +977,18 @@ window.HANI_WRITING = (function(){
       var model = document.getElementById("gemModel").value || "gemini-2.5-flash";
       var btn = this;
       btn.disabled = true;
-      setStatus("gradeStatus", "AI đang chấm bài theo criteria cố định & feedback giáo viên… (10–30 giây)", "");
+      setStatus("gradeStatus", "AI đang nhận diện ảnh (nếu có) & chấm bài theo criteria cố định & feedback giáo viên… (10–35 giây)", "");
 
       var task = currentTask();
       var target = document.getElementById("wTarget").value;
       var promptFull = document.getElementById("wPrompt").value.trim();
-      var wordCount = essay.split(/\s+/).length;
+      var parts = buildGeminiParts();
 
       fetch(GEMINI_BASE + "/models/" + encodeURIComponent(model) + ":generateContent", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": key },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: buildGradePrompt() }] }],
+          contents: [{ parts: parts }],
           generationConfig: {
             temperature: 0.25,
             responseMimeType: "application/json"
@@ -684,12 +1004,16 @@ window.HANI_WRITING = (function(){
         return r.json();
       })
       .then(function(data){
-        var parts = (((data.candidates || [])[0] || {}).content || {}).parts;
-        var raw = (parts || []).map(function(p){ return p.text || ""; }).join("");
+        var respParts = (((data.candidates || [])[0] || {}).content || {}).parts;
+        var raw = (respParts || []).map(function(p){ return p.text || ""; }).join("");
         if (!raw) throw new Error("Gemini không trả về nội dung.");
         var parsed = parseJsonResponse(raw);
         var today = window.HANI_STORAGE.todayStr();
         renderGradeResult(parsed, { task: task, target: target, date: today });
+
+        var finalPrompt = promptFull || (parsed.recognized_prompt_summary || "");
+        var finalEssay = essay || (parsed.transcribed_essay || "");
+        var finalWordCount = finalEssay.trim() ? finalEssay.trim().split(/\s+/).length : 0;
 
         deps.state.essays.unshift({
           id: "essay-" + Date.now(),
@@ -697,10 +1021,10 @@ window.HANI_WRITING = (function(){
           target: target,
           band: parsed.overall_band,
           date: today,
-          wordCount: wordCount,
-          prompt: promptFull.slice(0, 90),
-          promptFull: promptFull,
-          essay: essay,
+          wordCount: finalWordCount,
+          prompt: finalPrompt.slice(0, 90) || (imageStore.prompt.length ? "(Đề bài từ ảnh)" : ""),
+          promptFull: finalPrompt,
+          essay: finalEssay,
           result: parsed
         });
         deps.saveState();
@@ -746,6 +1070,8 @@ window.HANI_WRITING = (function(){
     renderFixedCriteria();
     renderTeacherFeedback();
     renderEssayList();
+    renderImagePreview("prompt");
+    renderImagePreview("essay");
     updateWordCount();
   }
 
