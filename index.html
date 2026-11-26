@@ -1,0 +1,570 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="light dark" />
+<link rel="icon" href="data:," />
+<title>IELTS with Hani</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="clouds" aria-hidden="true"><div class="cloud c1"></div><div class="cloud c2"></div><div class="cloud c3"></div></div>
+<div class="wrap">
+
+<header class="hero">
+  <div class="hero-top">
+    <div>
+      <h1>IELTS with <span class="accent">Hani</span></h1>
+      <p>Luyện IELTS mỗi ngày theo mục tiêu của riêng bạn — Listening &amp; Reading tách riêng lỗi sai, Writing AI chấm theo criteria cố định &amp; feedback giáo viên, tự lưu và đồng bộ Cloud.</p>
+    </div>
+    <div class="hero-actions">
+      <button type="button" class="pill sync-pill" id="syncPillBtn" title="Cài đặt đồng bộ Cloud (Supabase) & Sao lưu JSON">
+        <span class="dot" id="syncDot"></span>
+        <span id="syncText">Lưu trên máy (Local)</span>
+      </button>
+    </div>
+  </div>
+  <div class="meta" id="heroPills"></div>
+</header>
+
+<nav class="tabs" role="tablist" aria-label="Các mục luyện IELTS">
+  <button role="tab" aria-selected="true" data-tab="overview">Tổng quan</button>
+  <button role="tab" aria-selected="false" data-tab="goals">Mục tiêu tuần &amp; daily</button>
+  <button role="tab" aria-selected="false" data-tab="practice">Luyện đề</button>
+  <button role="tab" aria-selected="false" data-tab="writing">Writing AI</button>
+  <button role="tab" aria-selected="false" data-tab="speaking">Speaking</button>
+  <button role="tab" aria-selected="false" data-tab="vocab">Từ vựng</button>
+</nav>
+
+<!-- ===================== OVERVIEW ===================== -->
+<section class="page active" id="page-overview" role="tabpanel">
+  <div class="card">
+    <div class="card-head">
+      <div>
+        <h2>Hành trình band điểm</h2>
+        <p class="sub">Band hiện tại so với band mục tiêu của Hani — dữ liệu được lưu tự động.</p>
+      </div>
+      <button type="button" class="btn ghost small" id="editBandsBtn">Chỉnh band điểm</button>
+    </div>
+    <div class="grid c2" id="bandGrid"></div>
+  </div>
+
+  <div class="card">
+    <h2>Tuần này của bạn</h2>
+    <p class="sub">Tiến độ tự chạy theo số bài bạn ghi ở tab Luyện đề, Writing, Speaking và Từ vựng. Chỉnh mục tiêu ở tab “Mục tiêu tuần &amp; daily”.</p>
+    <div id="weekProgress"></div>
+  </div>
+
+  <div class="grid c4" style="margin-top:18px">
+    <div class="card stat-card"><div class="stat-num" id="stSessions">0</div><div class="stat-label">Bài Listening + Reading đã ghi</div></div>
+    <div class="card stat-card"><div class="stat-num" id="stEssays">0</div><div class="stat-label">Bài Writing đã chấm</div></div>
+    <div class="card stat-card"><div class="stat-num" id="stVocab">0<span style="font-size:1.1rem;color:var(--ink-faint)"> / 0</span></div><div class="stat-label">Từ đã thuộc / tổng số từ</div></div>
+    <div class="card stat-card"><div class="stat-num" id="stSpeaking">0</div><div class="stat-label">Chủ đề Speaking đã luyện</div></div>
+  </div>
+
+  <div class="grid c2" style="margin-top:18px">
+    <div class="card">
+      <h3>Lỗi hay sai nhất — Listening</h3>
+      <p class="sub">Tổng hợp từ các bài Listening bạn đã ghi.</p>
+      <div id="topErrListening"></div>
+    </div>
+    <div class="card">
+      <h3>Lỗi hay sai nhất — Reading</h3>
+      <p class="sub">Tổng hợp từ các bài Reading bạn đã ghi.</p>
+      <div id="topErrReading"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== GOALS ===================== -->
+<section class="page" id="page-goals" role="tabpanel">
+  <div class="card">
+    <h2>Mục tiêu tuần — tự tùy chỉnh</h2>
+    <p class="sub">Bấm + / − hoặc gõ số để đổi mục tiêu. Tiến độ tuần ở tab Tổng quan và gợi ý hôm nay bên dưới sẽ chạy theo đúng con số này.</p>
+    <div id="weeklyGoals"></div>
+  </div>
+
+  <div class="card">
+    <h2>Mục tiêu mỗi ngày (daily)</h2>
+    <p class="sub">Đặt nhịp học hằng ngày của bạn, rồi chạm vào từng việc để đánh dấu xong trong hôm nay (tự làm mới sang ngày hôm sau).</p>
+    <div id="dailyGoals"></div>
+    <h3 style="margin-top:20px">Việc của hôm nay</h3>
+    <div id="dailyChecklist"></div>
+  </div>
+
+  <div class="card">
+    <h2>Gợi ý lịch hôm nay</h2>
+    <p class="sub">Chia đều phần mục tiêu tuần còn lại cho các ngày còn lại trong tuần (tính từ hôm nay đến Chủ nhật).</p>
+    <div id="todayPlan"></div>
+  </div>
+</section>
+
+<!-- ===================== PRACTICE ===================== -->
+<section class="page" id="page-practice" role="tabpanel">
+  <div class="seg" role="group" aria-label="Chọn kỹ năng luyện đề">
+    <button id="segListening" aria-pressed="true">🎧 Listening</button>
+    <button id="segReading" aria-pressed="false">📖 Reading</button>
+  </div>
+
+  <div class="card" id="practiceCard">
+    <h2 id="practiceTitle">Ghi bài Listening</h2>
+    <p class="sub" id="practiceSub">Listening và Reading dùng hai bộ dạng câu hỏi và lý do sai riêng — lỗi của kỹ năng nào nằm ở kỹ năng đó.</p>
+    <form id="practiceForm">
+      <div class="frow">
+        <div>
+          <label class="fl" for="pName">Tên đề / bài test</label>
+          <input type="text" id="pName" placeholder="VD: Cambridge 18 — Test 2" required />
+        </div>
+        <div>
+          <label class="fl" for="pLink">Link đề gốc</label>
+          <input type="url" id="pLink" placeholder="https://" />
+        </div>
+      </div>
+      <div class="frow">
+        <div>
+          <label class="fl" for="pCorrect">Số câu đúng (trên 40)</label>
+          <input type="number" id="pCorrect" min="0" max="40" step="1" placeholder="VD: 32" required />
+        </div>
+        <div>
+          <label class="fl" for="pDate">Ngày làm</label>
+          <input type="text" id="pDate" />
+        </div>
+      </div>
+      <p class="hint" id="bandHint">Band quy đổi sẽ hiện ở đây khi bạn nhập số câu đúng.</p>
+
+      <label class="fl">Dạng câu hỏi trong đề</label>
+      <div class="chips" id="qTypeChips"></div>
+
+      <div class="err-head" style="margin-top:16px">
+        <label class="fl" style="margin:0">Lý do sai (bấm để cộng số câu)</label>
+        <span class="hint" id="errAssigned" style="margin:0">Đã gán 0 / 0 câu sai</span>
+      </div>
+      <div class="chips" id="errChips"></div>
+
+      <div class="frow" style="margin-top:14px">
+        <div>
+          <label class="fl" for="pCustomErr">Thêm nhóm lỗi mới của bạn</label>
+          <input type="text" id="pCustomErr" placeholder="VD: Nhầm tên riêng người nói" />
+        </div>
+        <div style="display:flex; align-items:flex-end">
+          <button type="button" class="btn ghost small" id="addCustomErr" style="width:100%">Thêm nhóm</button>
+        </div>
+      </div>
+
+      <label class="fl" for="pNote">Ghi chú bài này</label>
+      <textarea id="pNote" rows="2" placeholder="VD: Section 4 tốc độ nhanh, cần nghe lại 2 lần…"></textarea>
+
+      <div style="margin-top:18px; display:flex; gap:10px; flex-wrap:wrap">
+        <button type="submit" class="btn">Lưu bài luyện</button>
+        <button type="button" class="btn ghost" id="resetPractice">Xóa form</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2 id="listTitle">Các bài Listening đã ghi</h2>
+    <div id="practiceList"></div>
+    <h3 style="margin-top:22px">Lỗi hay gặp của kỹ năng này</h3>
+    <div id="freqErr"></div>
+  </div>
+</section>
+
+<!-- ===================== WRITING AI ===================== -->
+<section class="page" id="page-writing" role="tabpanel">
+  <div class="card">
+    <h2>1. Kết nối Gemini AI &amp; Đề bài</h2>
+    <p class="sub">Dán bài viết, AI sẽ chấm dựa vào <b>Criteria cố định (Task 1 / Task 2)</b> và toàn bộ <b>Feedback của giáo viên</b> bên dưới.</p>
+
+    <label class="fl" for="gemKey">Gemini API key của bạn</label>
+    <div class="frow">
+      <div><input type="password" id="gemKey" placeholder="Dán key lấy từ Google AI Studio…" autocomplete="off" /></div>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+        <button type="button" class="btn ghost small" id="loadModels">Kiểm tra key &amp; tải model</button>
+        <button type="button" class="btn danger small" id="clearGemKey">Xóa key</button>
+      </div>
+    </div>
+    <label class="check-inline">
+      <input type="checkbox" id="rememberGemKey" checked />
+      <span>Ghi nhớ API key trên trình duyệt này (chỉ lưu local, không đồng bộ lên Cloud)</span>
+    </label>
+    <p class="hint">Lấy key miễn phí tại <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>.</p>
+    <p class="status-line" id="modelStatus"></p>
+
+    <div class="frow3" style="margin-top:6px">
+      <div>
+        <label class="fl" for="gemModel">Model chấm bài</label>
+        <select id="gemModel">
+          <option value="gemini-2.5-flash">gemini-2.5-flash (khuyên dùng)</option>
+          <option value="gemini-2.5-pro">gemini-2.5-pro (chấm sâu)</option>
+          <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+        </select>
+      </div>
+      <div>
+        <label class="fl" for="wTask">Dạng bài</label>
+        <select id="wTask">
+          <option value="Task 2" selected>Task 2 — Essay</option>
+          <option value="Task 1">Task 1 — Chart / Process / Map</option>
+        </select>
+      </div>
+      <div>
+        <label class="fl" for="wTarget">Band mục tiêu</label>
+        <select id="wTarget">
+          <option value="6.5">6.5</option>
+          <option value="7.0" selected>7.0</option>
+          <option value="7.5">7.5</option>
+          <option value="8.0">8.0</option>
+        </select>
+      </div>
+    </div>
+
+    <label class="fl" for="wPrompt">Đề bài</label>
+    <textarea id="wPrompt" rows="3" placeholder="Dán đề Writing vào đây…"></textarea>
+    <label class="fl" for="wEssay">Bài viết của bạn</label>
+    <textarea id="wEssay" rows="10" placeholder="Dán bài viết tiếng Anh của bạn vào đây…"></textarea>
+    <p class="hint" id="wordCount">0 từ</p>
+  </div>
+
+  <!-- Fixed IELTS Rubric Card -->
+  <div class="card">
+    <div class="card-head">
+      <div>
+        <h2>2. Khung Criteria cố định (<span id="fixedCriteriaTaskLabel">Task 2</span>)</h2>
+        <p class="sub">Bộ tiêu chí chuẩn IELTS được ghim cố định gửi kèm cho AI mỗi lần chấm. Bỏ tick mục không muốn xét hoặc thêm tiêu chí riêng.</p>
+      </div>
+      <button type="button" class="btn ghost small" id="resetFixedCriteria">Khôi phục khung chuẩn</button>
+    </div>
+
+    <div class="rubric-grid" id="fixedCriteriaGrid"></div>
+
+    <div class="frow3" style="margin-top:14px">
+      <div>
+        <label class="fl" for="newFixedPoint">Thêm tiêu chí cố định mới</label>
+        <input type="text" id="newFixedPoint" placeholder="VD: Luôn có câu Counter-argument ở Body 2" />
+      </div>
+      <div>
+        <label class="fl" for="fcGroupSelect">Thuộc nhóm</label>
+        <select id="fcGroupSelect"></select>
+      </div>
+      <div style="display:flex; align-items:flex-end">
+        <button type="button" class="btn ghost small" id="addFixedPoint" style="width:100%">+ Thêm vào khung</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Teacher Feedback Manager Card -->
+  <div class="card">
+    <div class="card-head">
+      <div>
+        <h2>3. Feedback cố định của giáo viên</h2>
+        <p class="sub">Những lỗi/nhận xét bạn từng được giáo viên sửa. AI bắt buộc kiểm tra từng mục đang bật và báo rõ đã khắc phục hay còn tái phạm.</p>
+      </div>
+      <span class="badge pink" id="tfActiveCount">0 mục đang bật</span>
+    </div>
+
+    <div class="frow">
+      <div>
+        <label class="fl" for="tfTitle">Nội dung feedback / lỗi giáo viên nhắc</label>
+        <input type="text" id="tfTitle" placeholder="VD: Hay thiếu mạo từ trước danh từ đếm được số ít" />
+      </div>
+      <div>
+        <label class="fl" for="tfExample">Ghi chú / Ví dụ sửa của giáo viên (không bắt buộc)</label>
+        <input type="text" id="tfExample" placeholder="VD: 'Government should...' → 'The government should...'" />
+      </div>
+    </div>
+
+    <div class="frow3" style="margin-top:4px">
+      <div>
+        <label class="fl" for="tfCrit">Nhóm tiêu chí</label>
+        <select id="tfCrit">
+          <option value="TR/TA">TR / TA (Nội dung &amp; trả lời đề)</option>
+          <option value="CC">CC (Mạch lạc &amp; liên kết)</option>
+          <option value="LR">LR (Từ vựng)</option>
+          <option value="GRA" selected>GRA (Ngữ pháp)</option>
+          <option value="Chung">Chung / Phong cách viết</option>
+        </select>
+      </div>
+      <div>
+        <label class="fl" for="tfPriority">Mức độ ưu tiên</label>
+        <select id="tfPriority">
+          <option value="high" selected>Bắt buộc soi kỹ</option>
+          <option value="normal">Lưu ý thêm</option>
+        </select>
+      </div>
+      <div>
+        <label class="fl" for="tfScope">Áp dụng cho</label>
+        <select id="tfScope">
+          <option value="both" selected>Cả Task 1 &amp; Task 2</option>
+          <option value="Task 2">Chỉ Task 2</option>
+          <option value="Task 1">Chỉ Task 1</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap">
+      <button type="button" class="btn small" id="addTfBtn">+ Thêm feedback giáo viên</button>
+      <button type="button" class="btn ghost small" id="toggleBulkTf">Dán nhiều dòng cùng lúc</button>
+      <button type="button" class="btn ghost small" id="loadSampleTfBtn">Nạp 5 gợi ý mẫu</button>
+    </div>
+
+    <div id="bulkTfBox" class="note-box hidden" style="margin-top:14px">
+      <label class="fl" for="bulkTfText">Dán danh sách feedback của giáo viên (mỗi dòng 1 ý)</label>
+      <textarea id="bulkTfText" rows="4" placeholder="- Thiếu overview rõ ràng&#10;- Lạm dụng Firstly/Secondly&#10;- Sai chia động từ theo chủ ngữ số ít"></textarea>
+      <div class="frow" style="margin-top:10px">
+        <div>
+          <select id="bulkTfScope">
+            <option value="both" selected>Áp dụng cho cả Task 1 &amp; 2</option>
+            <option value="Task 2">Chỉ Task 2</option>
+            <option value="Task 1">Chỉ Task 1</option>
+          </select>
+        </div>
+        <div>
+          <button type="button" class="btn small" id="importBulkTfBtn" style="width:100%">Nhập tất cả dòng trên</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="teacherFeedbackList" style="margin-top:12px"></div>
+
+    <div style="margin-top:20px; padding-top:16px; border-top:1.5px dashed var(--line); display:flex; gap:10px; flex-wrap:wrap">
+      <button type="button" class="btn" id="gradeBtn">✨ Chấm bài bằng Gemini AI</button>
+      <button type="button" class="btn ghost" id="copyPromptBtn">Tạo &amp; copy prompt chấm thủ công</button>
+    </div>
+    <p class="status-line" id="gradeStatus"></p>
+  </div>
+
+  <!-- Grading Result Card -->
+  <div class="card hidden" id="resultCard">
+    <h2>Kết quả chấm bài</h2>
+    <p class="sub" id="resultSummary"></p>
+    <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap">
+      <div><div class="stat-num" id="overallBand">–</div><div class="stat-label">Band ước tính</div></div>
+      <p id="overallComment" style="flex:1; min-width:220px; font-weight:600; color:var(--ink-soft); margin:0"></p>
+    </div>
+
+    <div class="crit-grid" id="critGrid"></div>
+
+    <div id="tfResultWrap" class="hidden" style="margin-top:22px">
+      <h3>Đối chiếu theo Feedback của giáo viên</h3>
+      <div class="tf-check-grid" id="tfResultGrid"></div>
+    </div>
+
+    <h3 style="margin-top:22px">Lỗi cần sửa</h3>
+    <div id="errList"></div>
+
+    <div class="card-head" style="margin-top:22px; align-items:center">
+      <h3 style="margin:0">Bài viết lại hoàn chỉnh (giữ nguyên ý)</h3>
+      <button type="button" class="btn ghost xs" id="copyCorrectedBtn">Copy bản sửa</button>
+    </div>
+    <div class="rewrite-box" id="rewriteBox"></div>
+
+    <div class="card-head" style="margin-top:22px; align-items:center">
+      <h3 style="margin:0">Phiên bản nâng band mục tiêu</h3>
+      <button type="button" class="btn ghost xs" id="copyImprovedBtn">Copy bản nâng band</button>
+    </div>
+    <div class="rewrite-box" id="improvedBox"></div>
+
+    <div id="vocabSugWrap" class="hidden" style="margin-top:22px">
+      <h3>Từ vựng / Collocations gợi ý từ bài nâng band</h3>
+      <p class="hint" style="margin-top:0">Bấm “+ Lưu vào Từ vựng” để đưa thẳng sang tab Từ vựng ôn bằng Flashcard.</p>
+      <div class="vocab-sug-grid" id="vocabSugGrid"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Portfolio bài đã chấm</h2>
+    <p class="sub">Bấm “Xem lại kết quả chấm” ở bất kỳ bài nào để mở lại toàn bộ nhận xét, lỗi sai và bài mẫu.</p>
+    <div id="essayList"><div class="empty">Chưa có bài nào được chấm. Chấm bài đầu tiên ở trên nhé.</div></div>
+  </div>
+</section>
+
+<!-- ===================== SPEAKING ===================== -->
+<section class="page" id="page-speaking" role="tabpanel">
+  <div class="card">
+    <h2>Luyện Speaking theo chủ đề</h2>
+    <p class="sub">Thêm chủ đề, bấm giờ luyện nói như thi thật: Part 2 có 1 phút chuẩn bị và 2 phút nói.</p>
+    <div class="frow">
+      <div>
+        <label class="fl" for="spTopic">Chủ đề mới</label>
+        <input type="text" id="spTopic" placeholder="VD: Describe a trip you enjoyed" />
+      </div>
+      <div>
+        <label class="fl" for="spPart">Phần thi</label>
+        <select id="spPart"><option>Part 1</option><option selected>Part 2</option><option>Part 3</option></select>
+      </div>
+    </div>
+    <div style="margin-top:14px"><button type="button" class="btn small" id="addTopic">Thêm chủ đề</button></div>
+    <div id="topicList" style="margin-top:8px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Đồng hồ luyện nói</h2>
+    <p class="sub" id="timerTopic">Chưa chọn chủ đề — chọn một chủ đề ở trên để bắt đầu.</p>
+    <div class="timer-face" id="timerFace">02:00</div>
+    <p class="hint" style="text-align:center" id="timerPhase">Sẵn sàng</p>
+    <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:12px">
+      <button type="button" class="btn small" id="timerPrep">Chuẩn bị 1 phút</button>
+      <button type="button" class="btn small" id="timerSpeak">Nói 2 phút</button>
+      <button type="button" class="btn ghost small" id="timerStop">Dừng / đặt lại</button>
+      <button type="button" class="btn ghost small" id="timerDone">Đánh dấu đã luyện xong</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== VOCAB ===================== -->
+<section class="page" id="page-vocab" role="tabpanel">
+  <div class="card">
+    <h2>Thêm từ vựng từ bài luyện</h2>
+    <p class="sub">Từ vựng phân theo kỹ năng và theo đề / chủ đề, lấy từ bài bạn vừa luyện hoặc lưu trực tiếp từ Writing AI.</p>
+    <form id="vocabForm">
+      <div class="frow">
+        <div><label class="fl" for="vWord">Từ / cụm từ</label><input type="text" id="vWord" required placeholder="VD: congestion" /></div>
+        <div><label class="fl" for="vPos">Từ loại</label><input type="text" id="vPos" placeholder="VD: noun" /></div>
+      </div>
+      <div class="frow">
+        <div><label class="fl" for="vMeaning">Nghĩa tiếng Việt</label><input type="text" id="vMeaning" required placeholder="VD: tắc nghẽn giao thông" /></div>
+        <div><label class="fl" for="vTopic">Đề / chủ đề</label><input type="text" id="vTopic" placeholder="VD: Transport — Cam 18 Test 2" /></div>
+      </div>
+      <div class="frow">
+        <div>
+          <label class="fl" for="vSkill">Thuộc kỹ năng</label>
+          <select id="vSkill"><option>Listening</option><option>Reading</option><option>Writing</option><option>Speaking</option></select>
+        </div>
+        <div><label class="fl" for="vExample">Câu ví dụ (tiếng Anh)</label><input type="text" id="vExample" placeholder="VD: Congestion in the city centre is getting worse." /></div>
+      </div>
+      <div style="margin-top:16px"><button type="submit" class="btn small">Lưu từ</button></div>
+    </form>
+    <div id="vocabList" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Ôn tập</h2>
+    <p class="sub" id="vocabStats">Đã thuộc 0 / 0 từ.</p>
+    <div class="seg" role="group" aria-label="Chế độ ôn">
+      <button data-mode="flash" aria-pressed="true">Flashcard</button>
+      <button data-mode="fill" aria-pressed="false">Điền từ theo ngữ cảnh</button>
+      <button data-mode="translate" aria-pressed="false">Dịch câu / đặt câu</button>
+    </div>
+
+    <div id="modeFlash">
+      <button type="button" class="flash" id="flashCard" aria-label="Thẻ flashcard, chạm để lật">
+        <div class="f-word" id="flashWord">Chưa có từ nào</div>
+        <div class="f-pos" id="flashPos">Thêm từ đầu tiên ở form trên nhé</div>
+        <div class="f-back hidden" id="flashBack"></div>
+        <div class="f-tap" id="flashTap">Chạm để lật thẻ</div>
+      </button>
+      <div class="vocab-tools">
+        <button type="button" class="btn ghost small" id="flashPrev">← Từ trước</button>
+        <button type="button" class="btn ghost small" id="flashShuffle">Trộn thẻ</button>
+        <button type="button" class="btn small" id="flashKnown">Đã thuộc từ này ✓</button>
+        <button type="button" class="btn ghost small" id="flashNext">Từ tiếp →</button>
+      </div>
+    </div>
+
+    <div id="modeFill" class="hidden">
+      <p style="font-weight:700; line-height:1.6" id="fillSentence">Cần ít nhất 1 từ có câu ví dụ để luyện điền từ.</p>
+      <div class="frow">
+        <div><input type="text" id="fillInput" placeholder="Gõ từ còn thiếu…" /></div>
+        <div style="display:flex; gap:8px"><button type="button" class="btn small" id="fillCheck" style="flex:1">Kiểm tra</button><button type="button" class="btn ghost small" id="fillNext" style="flex:1">Câu khác</button></div>
+      </div>
+      <p class="status-line" id="fillStatus"></p>
+    </div>
+
+    <div id="modeTranslate" class="hidden">
+      <p class="hint" style="margin-top:0">Luyện dịch hoặc đặt câu với từ vựng đã lưu, rồi mở đáp án mẫu để đối chiếu.</p>
+      <div class="note-box" id="trSentence">Thêm từ vựng trước, câu dịch sẽ được soạn theo từ của bạn.</div>
+      <label class="fl" for="trInput">Bản dịch của bạn</label>
+      <textarea id="trInput" rows="3" placeholder="Dịch câu trên sang tiếng Anh…"></textarea>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px">
+        <button type="button" class="btn small" id="trNew">Câu dịch khác</button>
+        <button type="button" class="btn ghost small" id="trShow">Xem đáp án mẫu</button>
+      </div>
+      <div class="rewrite-box hidden" id="trAnswer"></div>
+    </div>
+  </div>
+</section>
+
+<footer>IELTS with Hani — Tự động lưu cục bộ &amp; hỗ trợ đồng bộ Cloud (Supabase) + chấm Writing AI Gemini. Chúc Hani sớm chạm 8.0!</footer>
+</div>
+
+<!-- ===================== MODAL: EDIT BANDS ===================== -->
+<div class="modal-backdrop hidden" id="bandModal" role="dialog" aria-modal="true" aria-labelledby="bandModalTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="bandModalTitle">Cập nhật Band điểm</h2>
+      <button type="button" class="btn ghost xs" id="closeBandModal">Đóng</button>
+    </div>
+    <p class="hint" style="margin-top:0">Nhập theo bậc 0.5 (VD: 6.5, 7.0, 8.5). Overall sẽ tự tính theo chuẩn làm tròn IELTS.</p>
+    <div id="bandFormFields"></div>
+    <div style="margin-top:18px; display:flex; justify-content:flex-end">
+      <button type="button" class="btn small" id="saveBandsBtn">Lưu band điểm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: CLOUD SYNC & BACKUP ===================== -->
+<div class="modal-backdrop hidden" id="syncModal" role="dialog" aria-modal="true" aria-labelledby="syncModalTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="syncModalTitle">Đồng bộ Cloud (Supabase) &amp; Sao lưu</h2>
+      <button type="button" class="btn ghost xs" id="closeSyncModal">Đóng</button>
+    </div>
+    <p class="hint" style="margin-top:0">Mọi dữ liệu luôn được lưu tự động trên trình duyệt hiện tại. Kết nối thêm <b>Supabase</b> (miễn phí) để đồng bộ giữa điện thoại và máy tính.</p>
+
+    <label class="fl" for="sbUrl">Supabase Project URL</label>
+    <input type="url" id="sbUrl" placeholder="https://xxxxx.supabase.co" />
+
+    <label class="fl" for="sbKey">Supabase Anon Key</label>
+    <input type="password" id="sbKey" placeholder="eyJhbGciOi..." autocomplete="off" />
+
+    <label class="fl" for="sbSyncId">Mã đồng bộ (Sync ID — đặt giống nhau trên các máy)</label>
+    <input type="text" id="sbSyncId" placeholder="VD: hani-ielts-secret-2026" />
+
+    <label class="check-inline">
+      <input type="checkbox" id="sbAutoSync" checked />
+      <span>Tự động đồng bộ lên Cloud mỗi khi có thay đổi</span>
+    </label>
+
+    <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap">
+      <button type="button" class="btn small" id="saveCloudCfgBtn">Lưu &amp; Đồng bộ ngay</button>
+      <button type="button" class="btn ghost small" id="pushCloudBtn">Đẩy lên Cloud</button>
+      <button type="button" class="btn ghost small" id="pullCloudBtn">Tải từ Cloud về</button>
+    </div>
+    <p class="status-line" id="syncModalStatus"></p>
+
+    <details class="fold">
+      <summary>Hướng dẫn tạo bảng Supabase trong 1 phút (bấm để mở)</summary>
+      <p class="hint">1. Tạo project miễn phí tại <a href="https://supabase.com" target="_blank" rel="noopener">supabase.com</a>.<br/>
+      2. Vào <b>SQL Editor</b> → dán đoạn SQL sau rồi bấm <b>Run</b>:<br/>
+      3. Vào <b>Project Settings → API</b> để copy <b>Project URL</b> và <b>anon public key</b> dán vào trên.</p>
+      <pre class="sql-box">create table if not exists public.hani_profiles (
+  id text primary key,
+  data jsonb not null,
+  updated_at timestamptz not null default now()
+);
+alter table public.hani_profiles enable row level security;
+create policy "Allow anon read write hani_profiles"
+  on public.hani_profiles for all to anon, authenticated
+  using (true) with check (true);</pre>
+    </details>
+
+    <div style="margin-top:18px; padding-top:16px; border-top:1.5px dashed var(--line); display:flex; gap:10px; flex-wrap:wrap; align-items:center">
+      <button type="button" class="btn ghost small" id="exportJsonBtn">Xuất file JSON sao lưu</button>
+      <label class="btn ghost small" style="display:inline-flex; align-items:center; cursor:pointer">
+        Nhập từ file JSON
+        <input type="file" id="importJsonInput" accept="application/json,.json" class="hidden" />
+      </label>
+      <button type="button" class="btn danger small" id="resetAllDataBtn" style="margin-left:auto">Đặt lại dữ liệu gốc</button>
+    </div>
+  </div>
+</div>
+
+<script defer src="data.js"></script>
+<script defer src="storage.js"></script>
+<script defer src="writing-ai.js"></script>
+<script defer src="app.js"></script>
+</body>
+</html>
