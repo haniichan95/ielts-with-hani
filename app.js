@@ -881,7 +881,7 @@
     var cfg = readCloudFormAndSave();
     if (!STORAGE.isCloudConfigured(cfg)){
       setSyncPill("idle", "Lưu trên máy (Local)");
-      setSyncModalStatus("Đã lưu cấu hình trống — app đang chạy ở chế độ lưu trên máy (Local).", "");
+      setSyncModalStatus("Hãy nhập Mã đồng bộ (Sync ID tối thiểu 4 ký tự) để bật đồng bộ Cloud, hoặc tiếp tục lưu trên máy (Local).", "");
       return;
     }
     setSyncModalStatus("Đang kiểm tra kết nối & đồng bộ…", "");

@@ -154,27 +154,30 @@ window.HANI_STORAGE = (function(){
     if (model) localStorage.setItem(GEM_MODEL_STORAGE, model);
   }
 
+  var DEFAULT_CLOUD_URL = "https://czsuehadmrjyeayxcxtq.supabase.co";
+  var DEFAULT_CLOUD_KEY = "sb_publishable_OFaqrAJP2AAMVlxOwGkirw_BWZYQ8TN";
+
   /* Cloud Sync (Supabase REST API) */
   function getCloudConfig(){
     try {
       var raw = localStorage.getItem(CLOUD_CFG_KEY);
-      if (!raw) return { url: "", anonKey: "", syncId: "", autoSync: true };
+      if (!raw) return { url: DEFAULT_CLOUD_URL, anonKey: DEFAULT_CLOUD_KEY, syncId: "", autoSync: true };
       var c = JSON.parse(raw);
       return {
-        url: (c.url || "").trim().replace(/\/+$/, ""),
-        anonKey: (c.anonKey || "").trim(),
+        url: ((c.url || DEFAULT_CLOUD_URL).trim()).replace(/\/+$/, ""),
+        anonKey: (c.anonKey || DEFAULT_CLOUD_KEY).trim(),
         syncId: (c.syncId || "").trim(),
         autoSync: c.autoSync !== false
       };
     } catch (e) {
-      return { url: "", anonKey: "", syncId: "", autoSync: true };
+      return { url: DEFAULT_CLOUD_URL, anonKey: DEFAULT_CLOUD_KEY, syncId: "", autoSync: true };
     }
   }
 
   function saveCloudConfig(cfg){
     var clean = {
-      url: (cfg.url || "").trim().replace(/\/+$/, ""),
-      anonKey: (cfg.anonKey || "").trim(),
+      url: ((cfg.url || DEFAULT_CLOUD_URL).trim()).replace(/\/+$/, ""),
+      anonKey: (cfg.anonKey || DEFAULT_CLOUD_KEY).trim(),
       syncId: (cfg.syncId || "").trim(),
       autoSync: cfg.autoSync !== false
     };
@@ -184,7 +187,7 @@ window.HANI_STORAGE = (function(){
 
   function isCloudConfigured(cfg){
     cfg = cfg || getCloudConfig();
-    return Boolean(cfg.url && cfg.anonKey && cfg.syncId);
+    return Boolean(cfg.url && cfg.anonKey && cfg.syncId && cfg.syncId.length >= 4);
   }
 
   function setStatus(kind, text){
@@ -194,17 +197,21 @@ window.HANI_STORAGE = (function(){
   }
 
   function supabaseHeaders(cfg){
-    return {
+    var h = {
       "Content-Type": "application/json",
       "apikey": cfg.anonKey,
-      "Authorization": "Bearer " + cfg.anonKey
+      "x-client-info": "hani-sync:" + cfg.syncId
     };
+    if (cfg.anonKey && cfg.anonKey.indexOf("eyJ") === 0){
+      h["Authorization"] = "Bearer " + cfg.anonKey;
+    }
+    return h;
   }
 
   function pushToCloud(state){
     var cfg = getCloudConfig();
     if (!isCloudConfigured(cfg)){
-      return Promise.reject(new Error("Chưa cấu hình Supabase URL, Anon Key và Sync ID."));
+      return Promise.reject(new Error("Hãy nhập Mã đồng bộ (Sync ID tối thiểu 4 ký tự)."));
     }
     setStatus("syncing", "Đang lưu lên Cloud…");
     var payload = {
@@ -242,7 +249,7 @@ window.HANI_STORAGE = (function(){
   function pullFromCloud(){
     var cfg = getCloudConfig();
     if (!isCloudConfigured(cfg)){
-      return Promise.reject(new Error("Chưa cấu hình Supabase URL, Anon Key và Sync ID."));
+      return Promise.reject(new Error("Hãy nhập Mã đồng bộ (Sync ID tối thiểu 4 ký tự)."));
     }
     setStatus("syncing", "Đang tải từ Cloud…");
     var endpoint = cfg.url + "/rest/v1/hani_profiles?id=eq." + encodeURIComponent(cfg.syncId) + "&select=id,data,updated_at";

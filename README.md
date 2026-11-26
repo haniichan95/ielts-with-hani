@@ -32,8 +32,7 @@ Trang web tĩnh luyện thi IELTS (Listening, Reading, Writing AI, Speaking, T�
 - **Vercel / Netlify**:
   1. Kết nối repo hoặc kéo thả thư mục vào Vercel / Netlify (Static site, không cần bước build).
 
-### 3. Bật đồng bộ Cloud đa thiết bị với Supabase (tùy chọn)
-1. Tạo project miễn phí tại [supabase.com](https://supabase.com).
-2. Vào **SQL Editor** và chạy nội dung trong file `supabase-schema.sql`.
-3. Vào **Project Settings → API** lấy **Project URL** và **anon public key**.
-4. Mở trang web → bấm nút trạng thái **Lưu trên máy (Local)** ở góc phải trên → nhập URL, Anon Key và một **Mã đồng bộ (Sync ID)** bí mật dùng chung trên mọi thiết bị.
+### 3. Bật đồng bộ Cloud đa thiết bị với Supabase
+Trang web đã được gắn sẵn Project Supabase `ielts-with-hani` (`https://czsuehadmrjyeayxcxtq.supabase.co`).
+1. Mở [SQL Editor của project](https://supabase.com/dashboard/project/czsuehadmrjyeayxcxtq/sql/new), dán nội dung file `supabase-schema.sql` và bấm **Run** (chỉ làm 1 lần duy nhất).
+2. Mở trang web → bấm nút **Lưu trên máy (Local)** ở góc phải trên → nhập một **Mã đồng bộ (Sync ID)** bí mật dùng chung trên mọi thiết bị (ví dụ: `hani-ielts-2026-secret`) → bấm **Lưu & Đồng bộ ngay**.

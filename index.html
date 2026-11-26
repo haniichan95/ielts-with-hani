@@ -512,16 +512,19 @@
       <h2 id="syncModalTitle">Đồng bộ Cloud (Supabase) &amp; Sao lưu</h2>
       <button type="button" class="btn ghost xs" id="closeSyncModal">Đóng</button>
     </div>
-    <p class="hint" style="margin-top:0">Mọi dữ liệu luôn được lưu tự động trên trình duyệt hiện tại. Kết nối thêm <b>Supabase</b> (miễn phí) để đồng bộ giữa điện thoại và máy tính.</p>
+    <p class="hint" style="margin-top:0">Dự án Supabase <b>ielts-with-hani</b> đã được gắn sẵn. Bạn chỉ cần nhập cùng một <b>Mã đồng bộ (Sync ID)</b> bí mật trên các thiết bị để đồng bộ dữ liệu.</p>
 
-    <label class="fl" for="sbUrl">Supabase Project URL</label>
-    <input type="url" id="sbUrl" placeholder="https://xxxxx.supabase.co" />
-
-    <label class="fl" for="sbKey">Supabase Anon Key</label>
-    <input type="password" id="sbKey" placeholder="eyJhbGciOi..." autocomplete="off" />
-
-    <label class="fl" for="sbSyncId">Mã đồng bộ (Sync ID — đặt giống nhau trên các máy)</label>
+    <label class="fl" for="sbSyncId">Mã đồng bộ bí mật (Sync ID — tối thiểu 4 ký tự, đặt giống nhau trên các máy)</label>
     <input type="text" id="sbSyncId" placeholder="VD: hani-ielts-secret-2026" />
+
+    <details class="fold">
+      <summary>Thông tin kết nối Supabase (đã gắn sẵn — bấm để xem / đổi)</summary>
+      <label class="fl" for="sbUrl">Supabase Project URL</label>
+      <input type="url" id="sbUrl" placeholder="https://czsuehadmrjyeayxcxtq.supabase.co" />
+
+      <label class="fl" for="sbKey">Supabase Publishable Key</label>
+      <input type="password" id="sbKey" placeholder="sb_publishable_..." autocomplete="off" />
+    </details>
 
     <label class="check-inline">
       <input type="checkbox" id="sbAutoSync" checked />
@@ -536,19 +539,29 @@
     <p class="status-line" id="syncModalStatus"></p>
 
     <details class="fold">
-      <summary>Hướng dẫn tạo bảng Supabase trong 1 phút (bấm để mở)</summary>
-      <p class="hint">1. Tạo project miễn phí tại <a href="https://supabase.com" target="_blank" rel="noopener">supabase.com</a>.<br/>
-      2. Vào <b>SQL Editor</b> → dán đoạn SQL sau rồi bấm <b>Run</b>:<br/>
-      3. Vào <b>Project Settings → API</b> để copy <b>Project URL</b> và <b>anon public key</b> dán vào trên.</p>
+      <summary>SQL khởi tạo bảng trên Supabase (chạy 1 lần nếu chưa tạo bảng)</summary>
+      <p class="hint">Mở <a href="https://supabase.com/dashboard/project/czsuehadmrjyeayxcxtq/sql/new" target="_blank" rel="noopener">SQL Editor của project ielts-with-hani</a> → dán đoạn SQL dưới đây và bấm <b>Run</b>:</p>
       <pre class="sql-box">create table if not exists public.hani_profiles (
-  id text primary key,
+  id text primary key check (char_length(id) >= 4 and char_length(id) <= 128),
   data jsonb not null,
   updated_at timestamptz not null default now()
 );
 alter table public.hani_profiles enable row level security;
-create policy "Allow anon read write hani_profiles"
-  on public.hani_profiles for all to anon, authenticated
-  using (true) with check (true);</pre>
+grant usage on schema public to anon, authenticated;
+grant select, insert, update on table public.hani_profiles to anon, authenticated;
+
+create policy "hani_profiles_select_by_sync_header"
+  on public.hani_profiles for select to anon, authenticated
+  using (('hani-sync:' || id) = coalesce(nullif(current_setting('request.headers', true), '')::jsonb ->> 'x-client-info', ''));
+
+create policy "hani_profiles_insert_by_sync_header"
+  on public.hani_profiles for insert to anon, authenticated
+  with check (('hani-sync:' || id) = coalesce(nullif(current_setting('request.headers', true), '')::jsonb ->> 'x-client-info', ''));
+
+create policy "hani_profiles_update_by_sync_header"
+  on public.hani_profiles for update to anon, authenticated
+  using (('hani-sync:' || id) = coalesce(nullif(current_setting('request.headers', true), '')::jsonb ->> 'x-client-info', ''))
+  with check (('hani-sync:' || id) = coalesce(nullif(current_setting('request.headers', true), '')::jsonb ->> 'x-client-info', ''));</pre>
     </details>
 
     <div style="margin-top:18px; padding-top:16px; border-top:1.5px dashed var(--line); display:flex; gap:10px; flex-wrap:wrap; align-items:center">
